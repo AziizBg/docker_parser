@@ -600,48 +600,112 @@ def handle_from(y, x, nb_stage):
 
 def handle_env(y, x):
     """
-    Parse ENV instruction with enhanced variable support
+    Parse ENV with multi-line support and add value validation metadata.
     
-    Handles both formats:
-    - ENV KEY=value
-    - ENV KEY value
-    
-    Args:
-        y (str): ENV instruction value
-        x (str): Instruction name ('ENV')
-        
-    Returns:
-        list: Structured representation of environment variables with variable metadata
+    Supports both formats:
+    - ENV KEY=value [KEY2=value2 ...]
+    - ENV KEY value [KEY2 value2 ...]
+    with line continuations using '\\'.
     """
-    key_values = []
-    pairs = y.split()
-    i = 0
-    while i < len(pairs):
-        pair = pairs[i]
-        pos_equal = pair.find('=')
-        if pos_equal != -1:
-            # Format: KEY=value
-            key = pair[:pos_equal]
-            value = pair[pos_equal + 1:]
-            
-            # Parse value with variable support
-            parsed_value = parse_value_with_variables(value)
-            
-            key_value_pair = ['pair', ['key', [key]], ['value', parsed_value]]
-            key_values.append(key_value_pair)
-        else:
-            # Format: KEY value
-            if i + 1 < len(pairs):
-                key = pair
-                value = pairs[i + 1]
-                
-                # Parse value with variable support
-                parsed_value = parse_value_with_variables(value)
-                
-                key_value_pair = ['pair', ['key', [key]], ['value', parsed_value]]
-                key_values.append(key_value_pair)
+    def _remove_line_continuations(text: str) -> str:
+        # Replace backslash-newline (and optional following spaces) with a single space
+        return re.sub(r"\\\s*\n\s*", " ", text)
+
+    def _tokenize_env(text: str):
+        # Split on whitespace but preserve quoted substrings
+        tokens = []
+        buf = ''
+        quote = None
+        i = 0
+        while i < len(text):
+            ch = text[i]
+            if ch in ('"', "'"):
+                if quote is None:
+                    quote = ch
+                elif quote == ch:
+                    quote = None
+                buf += ch
                 i += 1
-        i += 1
+                continue
+            if quote is None and ch.isspace():
+                if buf:
+                    tokens.append(buf)
+                    buf = ''
+                i += 1
+                continue
+            buf += ch
+            i += 1
+        if buf:
+            tokens.append(buf)
+        return tokens
+
+    def _strip_quotes(val: str) -> str:
+        if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+            return val[1:-1]
+        return val
+
+    def _analyze_env_value(key: str, raw_value: str):
+        meta = ['validation']
+        k_up = key.upper()
+        v_raw = _strip_quotes(raw_value.strip())
+        # Boolean
+        bool_map = {
+            'true': True, 'false': False,
+            '1': True, '0': False,
+            'yes': True, 'no': False
+        }
+        v_low = v_raw.lower()
+        if v_low in bool_map:
+            meta.append(['type', ['boolean']])
+            meta.append(['normalized', [str(bool_map[v_low])]])
+        # Port
+        if k_up == 'PORT' or k_up.endswith('_PORT'):
+            issue = None
+            try:
+                port_val = int(v_raw)
+                if port_val < 1 or port_val > 65535:
+                    issue = 'out_of_range'
+            except ValueError:
+                issue = 'not_integer'
+            meta.append(['type', ['port']])
+            if issue:
+                meta.append(['issue', [issue]])
+        # Path-like
+        if k_up == 'PATH' or k_up.endswith('_PATH') or ':' in v_raw:
+            segments = [seg for seg in v_raw.split(':') if seg]
+            meta.append(['type', ['path']])
+            meta.append(['segments', [str(len(segments))]])
+        # Secret-like
+        secret_keywords = ['SECRET', 'KEY', 'TOKEN', 'PASSWORD', 'PASS', 'AWS_']
+        looks_secret = any(word in k_up for word in secret_keywords)
+        if not looks_secret:
+            # long random-ish value heuristic
+            if len(v_raw) >= 16 and re.fullmatch(r'[A-Za-z0-9+/=_\-]+', v_raw):
+                looks_secret = True
+        if looks_secret:
+            meta.append(['type', ['potential_secret']])
+        return meta
+
+    content = _remove_line_continuations(y)
+    tokens = _tokenize_env(content)
+    key_values = []
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if '=' in token:
+            key, value = token.split('=', 1)
+            parsed_value = parse_value_with_variables(value)
+            pair = ['pair', ['key', [key]], ['value', parsed_value], _analyze_env_value(key, value)]
+            key_values.append(pair)
+            i += 1
+            continue
+        # KEY value
+        key = token
+        value = tokens[i + 1] if (i + 1) < len(tokens) else ''
+        parsed_value = parse_value_with_variables(value)
+        pair = ['pair', ['key', [key]], ['value', parsed_value], _analyze_env_value(key, value)]
+        key_values.append(pair)
+        i += 2
     return [x, key_values]
 
 

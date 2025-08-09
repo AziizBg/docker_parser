@@ -1,3 +1,2 @@
 FROM ubuntu:latest
-COPY config.json /app/
-COPY .env /app/
+ENV ENABLED=YES PORT=70000

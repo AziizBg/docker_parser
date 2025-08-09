@@ -1,0 +1,375 @@
+
+================================================================================
+ ENV LIMITATIONS - COMPREHENSIVE TEST SUITE
+================================================================================
+
+--- Test Case: Single-line values ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+ENV DEBUG=true PORT=8080 PATH=/usr/bin:/usr/local/bin
+
+```
+Explanation: Checks boolean normalization, port typing, and path segmentation on a single line.
+
+OLD VERSION Analysis:
+  ENV Node 1:
+    - ENV
+      - key
+        - DEBUG
+      - value
+        - true
+  ENV Node 2:
+    - ENV
+      - key
+        - PORT
+      - value
+        - 8080
+  ENV Node 3:
+    - ENV
+      - key
+        - PATH
+      - value
+        - /usr/bin:/usr/local/bin
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── ENV
+      │   ├── key
+      │   │   └── DEBUG
+      │   └── value
+      │       └── true
+      ├── ENV
+      │   ├── key
+      │   │   └── PORT
+      │   └── value
+      │       └── 8080
+      └── ENV
+          ├── key
+          │   └── PATH
+          └── value
+              └── /usr/bin:/usr/local/bin
+
+ENHANCED VERSION Analysis:
+  ENV Node 1:
+    - ENV
+      - ['pair', ['key', ['DEBUG']], ['value', ['text', ['true']]], ['validation', ['type', ['boolean']], ['normalized', ['True']]]]
+        - pair
+          - key
+            - PORT
+          - value
+            - text
+              - 8080
+          - validation
+            - type
+              - port
+        - pair
+          - key
+            - PATH
+          - value
+            - text
+              - /usr/bin:/usr/local/bin
+          - validation
+            - type
+              - path
+            - segments
+              - 2
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  └── ENV
+      └── ['pair', ['key', ['DEBUG']], ['value', ['text', ['true']]], ['validation', ['type', ['boolean']], ['normalized', ['True']]]]
+          ├── pair
+          │   ├── key
+          │   │   └── PORT
+          │   ├── value
+          │   │   └── text
+          │   │       └── 8080
+          │   └── validation
+          │       └── type
+          │           └── port
+          └── pair
+              ├── key
+              │   └── PATH
+              ├── value
+              │   └── text
+              │       └── /usr/bin:/usr/local/bin
+              └── validation
+                  ├── type
+                  │   └── path
+                  └── segments
+                      └── 2
+
+--- Test Case: Multi-line continuation ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+ENV VAR1=value1     VAR2=value2     VAR3=value3
+
+```
+Explanation: Ensures backslash-continued ENV lines are merged and parsed into separate pairs.
+
+OLD VERSION Analysis:
+  ENV Node 1:
+    - ENV
+      - key
+        - VAR1
+      - value
+        - value1
+  ENV Node 2:
+    - ENV
+      - key
+        - VAR2
+      - value
+        - value2
+  ENV Node 3:
+    - ENV
+      - key
+        - VAR3
+      - value
+        - value3
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── ENV
+      │   ├── key
+      │   │   └── VAR1
+      │   └── value
+      │       └── value1
+      ├── ENV
+      │   ├── key
+      │   │   └── VAR2
+      │   └── value
+      │       └── value2
+      └── ENV
+          ├── key
+          │   └── VAR3
+          └── value
+              └── value3
+
+ENHANCED VERSION Analysis:
+  ENV Node 1:
+    - ENV
+      - ['pair', ['key', ['VAR1']], ['value', ['text', ['value1']]], ['validation']]
+        - pair
+          - key
+            - VAR2
+          - value
+            - text
+              - value2
+          - validation
+        - pair
+          - key
+            - VAR3
+          - value
+            - text
+              - value3
+          - validation
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  └── ENV
+      └── ['pair', ['key', ['VAR1']], ['value', ['text', ['value1']]], ['validation']]
+          ├── pair
+          │   ├── key
+          │   │   └── VAR2
+          │   ├── value
+          │   │   └── text
+          │   │       └── value2
+          │   └── validation
+          └── pair
+              ├── key
+              │   └── VAR3
+              ├── value
+              │   └── text
+              │       └── value3
+              └── validation
+
+--- Test Case: Mixed formats ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+ENV NAME value
+ENV SECRET_KEY=mysecret123
+ENV AWS_TOKEN=AbCDefGh1234567
+
+```
+Explanation: Handles both KEY value and KEY=value formats; flags potential secrets.
+
+OLD VERSION Analysis:
+  ENV Node 1:
+    - ENV
+      - key
+        - NAME
+      - value
+        - value
+  ENV Node 2:
+    - ENV
+      - key
+        - SECRET_KEY
+      - value
+        - mysecret123
+  ENV Node 3:
+    - ENV
+      - key
+        - AWS_TOKEN
+      - value
+        - AbCDefGh1234567
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── ENV
+      │   ├── key
+      │   │   └── NAME
+      │   └── value
+      │       └── value
+      ├── ENV
+      │   ├── key
+      │   │   └── SECRET_KEY
+      │   └── value
+      │       └── mysecret123
+      └── ENV
+          ├── key
+          │   └── AWS_TOKEN
+          └── value
+              └── AbCDefGh1234567
+
+ENHANCED VERSION Analysis:
+  ENV Node 1:
+    - ENV
+      - ['pair', ['key', ['NAME']], ['value', ['text', ['value']]], ['validation']]
+  ENV Node 2:
+    - ENV
+      - ['pair', ['key', ['SECRET_KEY']], ['value', ['text', ['mysecret123']]], ['validation', ['type', ['potential_secret']]]]
+  ENV Node 3:
+    - ENV
+      - ['pair', ['key', ['AWS_TOKEN']], ['value', ['text', ['AbCDefGh1234567']]], ['validation', ['type', ['potential_secret']]]]
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  ├── ENV
+  │   └── ['pair', ['key', ['NAME']], ['value', ['text', ['value']]], ['validation']]
+  ├── ENV
+  │   └── ['pair', ['key', ['SECRET_KEY']], ['value', ['text', ['mysecret123']]], ['validation', ['type', ['potential_secret']]]]
+  └── ENV
+      └── ['pair', ['key', ['AWS_TOKEN']], ['value', ['text', ['AbCDefGh1234567']]], ['validation', ['type', ['potential_secret']]]]
+
+--- Test Case: Validation checks ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+ENV ENABLED=YES PORT=70000
+
+```
+Explanation: Detects YES as boolean true and flags invalid port range.
+
+OLD VERSION Analysis:
+  ENV Node 1:
+    - ENV
+      - key
+        - ENABLED
+      - value
+        - YES
+  ENV Node 2:
+    - ENV
+      - key
+        - PORT
+      - value
+        - 70000
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── ENV
+      │   ├── key
+      │   │   └── ENABLED
+      │   └── value
+      │       └── YES
+      └── ENV
+          ├── key
+          │   └── PORT
+          └── value
+              └── 70000
+
+ENHANCED VERSION Analysis:
+  ENV Node 1:
+    - ENV
+      - ['pair', ['key', ['ENABLED']], ['value', ['text', ['YES']]], ['validation', ['type', ['boolean']], ['normalized', ['True']]]]
+        - pair
+          - key
+            - PORT
+          - value
+            - text
+              - 70000
+          - validation
+            - type
+              - port
+            - issue
+              - out_of_range
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  └── ENV
+      └── ['pair', ['key', ['ENABLED']], ['value', ['text', ['YES']]], ['validation', ['type', ['boolean']], ['normalized', ['True']]]]
+          └── pair
+              ├── key
+              │   └── PORT
+              ├── value
+              │   └── text
+              │       └── 70000
+              └── validation
+                  ├── type
+                  │   └── port
+                  └── issue
+                      └── out_of_range

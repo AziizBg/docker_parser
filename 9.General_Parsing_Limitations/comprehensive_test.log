@@ -1,0 +1,38 @@
+
+== GENERAL PARSING LIMITATIONS - COMPARISON ==
+
+Test Dockerfile:
+```dockerfile
+FROM ubuntu:latest
+ENV KEY=
+RUN 
+COPY 
+FROM 
+
+```
+Explanation: Enhanced parser emits error nodes (empty_env, empty_command, incomplete_copy_add, missing_image).
+
+OLD VERSION: ❌ Error: string index out of range
+
+ENHANCED VERSION:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  ├── ENV
+  │   └── ['pair', ['key', ['KEY']], ['value', ['text', ['']]], ['validation', ['type', ['potential_secret']]]]
+  ├── RUN
+  │   └── error
+  │       └── empty_command
+  ├── COPY
+  │   └── error
+  │       └── incomplete_copy_add
+  └── FROM
+      ├── stage
+      │   └── 2
+      └── error
+          └── missing_image

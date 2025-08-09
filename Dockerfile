@@ -1,4 +1,5 @@
 FROM ubuntu:latest
-ARG VERSION
-ARG BUILD_DATE
-ARG CHANNEL=stable
+ENV KEY=
+RUN 
+COPY 
+FROM 

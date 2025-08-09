@@ -568,6 +568,10 @@ def handle_from(y, x, nb_stage):
     Returns:
         list: Structured representation of FROM instruction
     """
+    # Basic error recovery: missing image
+    if not y or not y.strip():
+        return [x, ['stage', [nb_stage]], ['error', ['missing_image']]]
+
     # Parse image parts
     image_part1, image_part2 = parse_image_parts(y)
     
@@ -584,8 +588,10 @@ def handle_from(y, x, nb_stage):
     result = [x, ['stage', [nb_stage]]]
     
     # Add image information
-    if image_name:
+    if image_name and image_name.strip():
         result.append(['image_name', [image_name]])
+    else:
+        result.append(['error', ['missing_image_name']])
     
     if image_tag:
         result.append(['image_tag', [image_tag]])
@@ -687,6 +693,8 @@ def handle_env(y, x):
             meta.append(['type', ['potential_secret']])
         return meta
 
+    if not y or not y.strip():
+        return [x, ['error', ['empty_env']]]
     content = _remove_line_continuations(y)
     tokens = _tokenize_env(content)
     key_values = []
@@ -1305,6 +1313,8 @@ def handle_run(y, x, workdir: str):
     """
     Enhanced RUN/CMD/ENTRYPOINT parser with shell construct analysis and script detection.
     """
+    if not y or not y.strip():
+        return [x, ['error', ['empty_command']]]
     logical_segments = split_run_commands_logical(y)
     # Pass 1: collect chmod +x targets within this instruction
     chmod_exec_paths = set()
@@ -1396,6 +1406,8 @@ def handle_copy_add(y, x, stage_aliases, current_stage_number, repo_path, docker
     Returns:
         list: Structured representation of copy/add operation with variable metadata
     """
+    if not y or not y.strip():
+        return [x, ['error', ['incomplete_copy_add']]]
     # Check if it's JSON array format
     if y.startswith('[') and y.endswith(']'):
         try:

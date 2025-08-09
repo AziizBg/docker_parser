@@ -1,0 +1,388 @@
+stage
+├── FROM
+│   ├── stage
+│   │   └── 1
+│   ├── image_name
+│   │   └── node
+│   ├── image_tag
+│   │   └── 18
+│   └── alias
+│       └── builder
+├── ARG
+│   ├── name
+│   │   └── NODE_ENV
+│   ├── resolved
+│   │   └── text
+│   │       └── production
+│   └── source
+│       └── build_arg
+├── ARG
+│   ├── name
+│   │   └── BUILD_DATE
+│   ├── resolved
+│   │   └── text
+│   │       └── 2025-01-01
+│   └── source
+│       └── build_arg
+├── WORKDIR
+│   └── path
+│       └── text
+│           └── /app
+├── COPY
+│   ├── source
+│   │   └── text
+│   │       └── package.json
+│   ├── destination
+│   │   └── text
+│   │       └── package-lock.json
+│   └── files
+│       └── file
+│           ├── container_path
+│           │   └── package-lock.json/package.json
+│           ├── repo_path
+│           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/tmpfqhrqnih/package.json
+│           ├── type
+│           │   └── json
+│           └── size
+│               └── 3
+├── COMMENT
+│   └── value
+│       └── text
+│           └── Mixed separators and grouping
+├── RUN
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── text
+│   │   │       └── npm ci
+│   │   ├── separator
+│   │   │   └── &&
+│   │   └── type
+│   │       └── and_operator
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── text
+│   │   │       └── npm run build
+│   │   ├── separator
+│   │   │   └── ||
+│   │   └── type
+│   │       └── or_operator
+│   └── command_segment
+│       └── command
+│           └── text
+│               └── (echo "build failed" && exit 1)
+├── COPY
+│   ├── source
+│   │   └── text
+│   │       └── scripts/init.sh
+│   ├── destination
+│   │   └── text
+│   │       └── /usr/local/bin/init.sh
+│   └── files
+│       └── file
+│           ├── container_path
+│           │   └── /usr/local/bin/init.sh/init.sh
+│           ├── repo_path
+│           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/tmpfqhrqnih/scripts/init.sh
+│           ├── type
+│           │   └── text
+│           └── size
+│               └── 62
+├── COPY
+│   ├── source
+│   │   └── text
+│   │       └── scripts/run.py
+│   ├── destination
+│   │   └── text
+│   │       └── /usr/local/bin/run.py
+│   └── files
+│       └── file
+│           ├── container_path
+│           │   └── /usr/local/bin/run.py/run.py
+│           ├── repo_path
+│           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/tmpfqhrqnih/scripts/run.py
+│           ├── type
+│           │   └── text
+│           └── size
+│               └── 83
+├── RUN
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── text
+│   │   │       └── chmod +x /usr/local/bin/init.sh
+│   │   ├── separator
+│   │   │   └── &&
+│   │   └── type
+│   │       └── and_operator
+│   └── command_segment
+│       └── script
+│           ├── path
+│           │   └── /usr/local/bin/init.sh
+│           └── args
+│               └── text
+│                   └── arg1 & echo background
+├── ENV
+│   └── ['pair', ['key', ['PATH']], ['value', ['value_with_variables', ['variable', ['name', ['PATH']], ['type', ['simple']]], ['text', [':/app/node_modules/.bin']]]], ['validation', ['type', ['path']], ['segments', ['2']]]]
+│       ├── pair
+│       │   ├── key
+│       │   │   └── DEBUG
+│       │   ├── value
+│       │   │   └── value_with_variables
+│       │   │       └── variable
+│       │   │           ├── name
+│       │   │           │   └── DEBUG
+│       │   │           ├── type
+│       │   │           │   └── default
+│       │   │           └── default
+│       │   │               └── false
+│       │   └── validation
+│       │       ├── type
+│       │       │   └── path
+│       │       └── segments
+│       │           └── 2
+│       ├── pair
+│       │   ├── key
+│       │   │   └── PREFIX
+│       │   ├── value
+│       │   │   └── value_with_variables
+│       │   │       └── variable
+│       │   │           ├── name
+│       │   │           │   └── PREFIX
+│       │   │           ├── type
+│       │   │           │   └── substitute
+│       │   │           └── substitute
+│       │   │               └── /opt
+│       │   └── validation
+│       │       ├── type
+│       │       │   └── path
+│       │       └── segments
+│       │           └── 2
+│       └── pair
+│           ├── key
+│           │   └── NESTED
+│           ├── value
+│           │   └── value_with_variables
+│           │       └── variable
+│           │           ├── name
+│           │           │   └── OUTER:-${INNER:-fallback}
+│           │           └── type
+│           │               └── simple
+│           └── validation
+│               ├── type
+│               │   └── path
+│               └── segments
+│                   └── 3
+├── EXPOSE
+│   └── port
+│       ├── 1
+│       │   ├── value
+│       │   │   └── 3000
+│       │   └── protocol
+│       │       └── tcp
+│       └── 2
+│           └── value
+│               └── 9229
+├── RUN
+│   ├── command_segment
+│   │   └── command
+│   │       └── text
+│   │           └── bash
+│   ├── command_segment
+│   │   └── command
+│   │       └── text
+│   │           └── -lc
+│   └── command_segment
+│       └── command
+│           └── text
+│               └── echo json form
+├── FROM
+│   ├── stage
+│   │   └── 2
+│   ├── image_name
+│   │   └── nginx
+│   ├── image_tag
+│   │   └── alpine
+│   └── alias
+│       └── runtime
+├── COPY
+│   ├── source
+│   │   └── text
+│   │       └── --from=builder
+│   ├── destination
+│   │   └── text
+│   │       └── /app/dist
+│   └── files
+│       └── file
+│           ├── container_path
+│           │   └── /app/dist/--from=builder
+│           ├── repo_path
+│           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/tmpfqhrqnih/--from=builder
+│           ├── type
+│           │   └── unknown
+│           └── size
+│               └── 0
+├── USER
+│   ├── user
+│   │   └── text
+│   │       └── 1001
+│   └── group
+│       └── text
+│           └── 1001
+├── RUN
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── text
+│   │   │       └── echo "starting"
+│   │   ├── separator
+│   │   │   └── ;
+│   │   └── type
+│   │       └── semicolon
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── text
+│   │   │       └── for i in 1 2 3
+│   │   ├── separator
+│   │   │   └── ;
+│   │   └── type
+│   │       └── semicolon
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── value_with_variables
+│   │   │       ├── text
+│   │   │       │   └── do echo 
+│   │   │       └── variable
+│   │   │           ├── name
+│   │   │           │   └── i
+│   │   │           └── type
+│   │   │               └── simple
+│   │   ├── separator
+│   │   │   └── ;
+│   │   └── type
+│   │       └── semicolon
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── text
+│   │   │       └── done
+│   │   ├── separator
+│   │   │   └── ;
+│   │   └── type
+│   │       └── semicolon
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── text
+│   │   │       └── if [ -f /etc/alpine-release ]
+│   │   ├── separator
+│   │   │   └── ;
+│   │   └── type
+│   │       └── semicolon
+│   ├── command_segment
+│   │   ├── command
+│   │   │   └── text
+│   │   │       └── then echo alpine
+│   │   ├── separator
+│   │   │   └── ;
+│   │   └── type
+│   │       └── semicolon
+│   └── command_segment
+│       └── command
+│           └── text
+│               └── fi
+├── EXPOSE
+│   └── port
+│       └── 1
+│           └── value
+│               └── 80
+├── ARG
+│   ├── name
+│   │   └── CHANNEL
+│   ├── value
+│   │   └── text
+│   │       └── stable
+│   └── source
+│       └── default
+├── ENV
+│   └── ['pair', ['key', ['VERSION']], ['value', ['value_with_variables', ['variable', ['name', ['VERSION']], ['type', ['default']], ['default', ['1.0.0']]]]], ['validation', ['type', ['path']], ['segments', ['2']]]]
+├── WORKDIR
+│   └── path
+│       └── text
+│           └── /srv
+├── COPY
+│   ├── source
+│   │   └── text
+│   │       └── configs/nginx.conf
+│   ├── destination
+│   │   └── text
+│   │       └── /etc/nginx/nginx.conf
+│   └── files
+│       └── file
+│           ├── container_path
+│           │   └── /etc/nginx/nginx.conf/nginx.conf
+│           ├── repo_path
+│           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/tmpfqhrqnih/configs/nginx.conf
+│           ├── type
+│           │   └── text
+│           └── size
+│               └── 18
+├── COPY
+│   ├── source
+│   │   └── text
+│   │       └── src/{a,b}.txt
+│   ├── destination
+│   │   └── text
+│   │       └── /data/
+│   └── files
+│       ├── file
+│       │   ├── container_path
+│       │   │   └── /data/a.txt
+│       │   ├── repo_path
+│       │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/tmpfqhrqnih/src/a.txt
+│       │   ├── type
+│       │   │   └── text
+│       │   └── size
+│       │       └── 2
+│       └── file
+│           ├── container_path
+│           │   └── /data/b.txt
+│           ├── repo_path
+│           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/tmpfqhrqnih/src/b.txt
+│           ├── type
+│           │   └── text
+│           └── size
+│               └── 2
+├── ADD
+│   ├── source
+│   │   └── text
+│   │       └── assets/data.bin
+│   ├── destination
+│   │   └── text
+│   │       └── /opt/data.bin
+│   └── files
+│       └── file
+│           ├── container_path
+│           │   └── /opt/data.bin/data.bin
+│           ├── repo_path
+│           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/tmpfqhrqnih/assets/data.bin
+│           ├── type
+│           │   └── binary
+│           └── size
+│               └── 8
+├── RUN
+│   └── command_segment
+│       └── script
+│           ├── path
+│           │   └── /usr/local/bin/run.py
+│           └── args
+│               └── text
+│                   └── | tee /tmp/out.txt
+└── CMD
+    ├── command_segment
+    │   └── command
+    │       └── text
+    │           └── nginx
+    ├── command_segment
+    │   └── command
+    │       └── text
+    │           └── -g
+    └── command_segment
+        └── command
+            └── text
+                └── daemon off;

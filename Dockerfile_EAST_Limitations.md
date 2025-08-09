@@ -22,7 +22,7 @@ ENV COMPLEX=${VAR1:-default}${VAR2:+suffix}  # Complex substitution
 ENV NESTED=${OUTER:-${INNER:-fallback}}  # Nested variables
 ```
 
-### 1.2 Missing Variable Resolution
+<!-- ### 1.2 Missing Variable Resolution
 
 **Limitation**: The parser doesn't resolve or track variable dependencies across instructions.
 
@@ -32,7 +32,7 @@ ARG VERSION=1.0
 ENV APP_VERSION=$VERSION
 RUN echo "Building version $APP_VERSION"
 # The parser doesn't understand that $APP_VERSION = $VERSION = 1.0
-```
+``` -->
 
 ## 2. RUN Instruction Parsing Limitations
 

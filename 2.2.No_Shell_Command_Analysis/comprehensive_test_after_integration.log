@@ -1,0 +1,339 @@
+
+================================================================================
+ Limitation 2.2 - Shell Command Analysis
+================================================================================
+
+--- for loop ---
+Dockerfile:
+FROM ubuntu:latest
+RUN for i in 1 2 3; do echo $i; done
+
+
+OLD VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_for
+      - variable
+        - i
+      - in
+        - text
+          - 1 2 3
+      - body
+        - value_with_variables
+          - text
+            - echo 
+          - variable
+            - name
+            - type
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_for
+      - variable
+        - i
+      - in
+        - text
+          - 1 2 3
+      - body
+        - value_with_variables
+          - text
+            - echo 
+          - variable
+            - name
+            - type
+
+--- if/elif/else ---
+Dockerfile:
+FROM ubuntu:latest
+RUN if [ -f file.txt ]; then echo exists; elif [ -d /tmp ]; then echo tmp; else echo none; fi
+
+
+OLD VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_if
+      - condition
+        - text
+          - [ -f file.txt ]
+      - then
+        - text
+          - echo exists
+      - elif
+        - condition
+          - text
+            - [ -d /tmp ]
+        - body
+          - text
+            - echo tmp
+      - else
+        - text
+          - echo none
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_if
+      - condition
+        - text
+          - [ -f file.txt ]
+      - then
+        - text
+          - echo exists
+      - elif
+        - condition
+          - text
+            - [ -d /tmp ]
+        - body
+          - text
+            - echo tmp
+      - else
+        - text
+          - echo none
+
+--- while loop ---
+Dockerfile:
+FROM ubuntu:latest
+RUN while grep -q foo file.txt; do echo loop; done
+
+
+OLD VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_while
+      - condition
+        - text
+          - grep -q foo file.txt
+      - body
+        - text
+          - echo loop
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_while
+      - condition
+        - text
+          - grep -q foo file.txt
+      - body
+        - text
+          - echo loop
+
+--- case statement ---
+Dockerfile:
+FROM ubuntu:latest
+RUN case $VAR in "a") echo A ;; "b") echo B ;; *) echo other ;; esac
+
+
+OLD VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_case
+      - value
+        - value_with_variables
+          - variable
+            - name
+            - type
+      - case_when
+        - pattern
+          - text
+            - "a"
+        - body
+          - text
+            - echo A
+      - case_when
+        - pattern
+          - text
+            - "b"
+        - body
+          - text
+            - echo B
+      - case_when
+        - pattern
+          - text
+            - *
+        - body
+          - text
+            - echo other
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_case
+      - value
+        - value_with_variables
+          - variable
+            - name
+            - type
+      - case_when
+        - pattern
+          - text
+            - "a"
+        - body
+          - text
+            - echo A
+      - case_when
+        - pattern
+          - text
+            - "b"
+        - body
+          - text
+            - echo B
+      - case_when
+        - pattern
+          - text
+            - *
+        - body
+          - text
+            - echo other
+
+--- mixed with separators ---
+Dockerfile:
+FROM ubuntu:latest
+RUN if [ -f a ]; then echo A; fi && for i in 1 2; do echo $i; done || echo fail
+
+
+OLD VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_if
+      - condition
+        - text
+          - [ -f a ]
+      - then
+        - text
+          - echo A
+    - separator
+      - &&
+    - type
+      - and_operator
+  - command_segment
+    - shell_for
+      - variable
+        - i
+      - in
+        - text
+          - 1 2
+      - body
+        - value_with_variables
+          - text
+            - echo 
+          - variable
+            - name
+            - type
+    - separator
+      - ||
+    - type
+      - or_operator
+  - command_segment
+    - command
+      - text
+        - echo fail
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_if
+      - condition
+        - text
+          - [ -f a ]
+      - then
+        - text
+          - echo A
+    - separator
+      - &&
+    - type
+      - and_operator
+  - command_segment
+    - shell_for
+      - variable
+        - i
+      - in
+        - text
+          - 1 2
+      - body
+        - value_with_variables
+          - text
+            - echo 
+          - variable
+            - name
+            - type
+    - separator
+      - ||
+    - type
+      - or_operator
+  - command_segment
+    - command
+      - text
+        - echo fail
+
+--- variables inside constructs ---
+Dockerfile:
+FROM ubuntu:latest
+ARG NAME=world
+RUN if [ -n "$NAME" ]; then echo "Hi $NAME"; else echo none; fi
+
+
+OLD VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_if
+      - condition
+        - value_with_variables
+          - text
+            - [ -n "
+          - variable
+            - name
+            - type
+          - text
+            - " ]
+      - then
+        - value_with_variables
+          - text
+            - echo "Hi 
+          - variable
+            - name
+            - type
+          - text
+            - "
+      - else
+        - text
+          - echo none
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - shell_if
+      - condition
+        - value_with_variables
+          - text
+            - [ -n "
+          - variable
+            - name
+            - type
+          - text
+            - " ]
+      - then
+        - value_with_variables
+          - text
+            - echo "Hi 
+          - variable
+            - name
+            - type
+          - text
+            - "
+      - else
+        - text
+          - echo none

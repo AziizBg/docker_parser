@@ -983,6 +983,21 @@ def parse_if_block(command: str):
                 break
             else:
                 idx += 1
+        # Ensure the construct terminates at fi with no trailing content
+        if tokens and tokens[-1][0] == 'fi':
+            fi_pos = tokens[-1][1]
+            # Determine the exact matched token length at fi position
+            if after_then.startswith('; fi', fi_pos):
+                fi_len = len('; fi')
+            elif after_then.startswith(' fi', fi_pos):
+                fi_len = len(' fi')
+            elif after_then.startswith('fi', fi_pos):
+                fi_len = len('fi')
+            else:
+                fi_len = 2
+            trailing = after_then[fi_pos + fi_len:]
+            if trailing.strip():
+                return None
     else:
         if after_then.endswith(' fi'):
             then_body = clean(after_then[:-3])

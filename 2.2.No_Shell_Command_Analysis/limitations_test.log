@@ -1,0 +1,109 @@
+
+================================================================================
+ Enhanced Shell Parser — Known Limitations Showcase
+================================================================================
+
+--- L1: Trailing chained segments after a construct ---
+Dockerfile:
+FROM ubuntu:latest
+RUN if [ -f a ]; then echo A; fi && for i in 1 2; do echo $i; done || echo fail
+
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - shell_if
+    - condition
+      - text
+        - [ -f a ]
+    - then
+      - text
+        - echo A
+
+NOTE: Observed limitation illustrated above.
+
+
+--- L2: Nested constructs inside for body not parsed ---
+Dockerfile:
+FROM ubuntu:latest
+RUN for i in 1 2; do if [ "$i" = "1" ]; then echo one; else echo other; fi; done
+
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - shell_for
+    - variable
+      - i
+    - in
+      - text
+        - 1 2
+    - body
+      - value_with_variables
+        - text
+          - if [ "
+        - variable
+          - name
+            - i
+          - type
+            - simple
+        - text
+          - " = "1" ]; then echo one; else echo other; fi
+
+NOTE: Observed limitation illustrated above.
+
+
+--- L3: While with input redirection ---
+Dockerfile:
+FROM ubuntu:latest
+RUN while read line; do echo $line; done < input.txt
+
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - command_segment
+    - command
+      - value_with_variables
+        - text
+          - while read line; do echo 
+        - variable
+          - name
+            - line
+          - type
+            - simple
+        - text
+          - ; done < input.txt
+
+NOTE: Observed limitation illustrated above.
+
+
+--- L4: Construct followed by construct ---
+Dockerfile:
+FROM ubuntu:latest
+RUN for i in a b; do echo $i; done && while grep -q a file; do echo loop; done
+
+
+ENHANCED VERSION:
+  RUN 1 structure:
+- RUN
+  - shell_for
+    - variable
+      - i
+    - in
+      - text
+        - a b
+    - body
+      - value_with_variables
+        - text
+          - echo 
+        - variable
+          - name
+            - i
+          - type
+            - simple
+        - text
+          - ; done && while grep -q a file; do echo loop
+
+NOTE: Observed limitation illustrated above.
+

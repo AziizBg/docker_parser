@@ -1,2 +1,3 @@
 FROM ubuntu:latest
-RUN echo "hello"
+COPY config.json /app/
+COPY .env /app/

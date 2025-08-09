@@ -113,6 +113,54 @@ def _detect_script_invocation(tokens, workdir: str, chmod_exec_paths: set):
     return None
 
 
+# --- COPY/ADD enhancements (4.x) ---
+def _brace_expand(pattern: str):
+    # Simple one-level {a,b} expansion
+    if '{' not in pattern or '}' not in pattern:
+        return [pattern]
+    # find first {...}
+    start = pattern.find('{')
+    end = pattern.find('}', start + 1)
+    if end == -1:
+        return [pattern]
+    head = pattern[:start]
+    body = pattern[start + 1:end]
+    tail = pattern[end + 1:]
+    parts = body.split(',')
+    expanded = []
+    for p in parts:
+        expanded.append(head + p + tail)
+    return expanded
+
+
+def _determine_content_type(file_path: str):
+    try:
+        size = os.path.getsize(file_path)
+    except Exception:
+        return 'unknown', 0
+    ctype = 'text'
+    try:
+        with open(file_path, 'rb') as fb:
+            chunk = fb.read(4096)
+            if b'\x00' in chunk:
+                return 'binary', size
+    except Exception:
+        return 'unknown', size
+    # text heuristics
+    lower = file_path.lower()
+    if lower.endswith('.json'):
+        try:
+            import json as _json
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                _json.load(f)
+            return 'json', size
+        except Exception:
+            return 'text', size
+    if os.path.basename(lower) == '.env' or lower.endswith('.env'):
+        return 'env', size
+    return 'text', size
+
+
 def variableExists(x):
     """
     Check if a string contains Docker environment variable syntax and extract variable information
@@ -1236,27 +1284,71 @@ def handle_copy_add(y, x, stage_aliases, current_stage_number, repo_path, docker
     # Shell format - split by whitespace
     parts = y.split()
     if len(parts) >= 2:
-        source = parts[0]
+        source_raw = parts[0]
         destination = parts[1]
-        
-        # Parse with variable support
-        parsed_source = parse_value_with_variables(source)
-        parsed_destination = parse_value_with_variables(destination)
-        
-        # Record container->repo mapping for potential scripts
-        if source == '.':
-            base_dir = str(Path(dockerfile_path_local).parent)
-            for dirpath, _, filenames in os.walk(base_dir):
-                for filename in filenames:
-                    cont_path = os.path.join(destination, filename).replace('\\', '/')
-                    repo_path_abs = os.path.join(dirpath, filename).replace('\\', '/')
-                    container_to_repo_map[cont_path] = repo_path_abs
-        else:
-            repo_path_abs = os.path.join(repo_path, source)
-            cont_path = os.path.join(destination, os.path.basename(source)).replace('\\', '/')
-            container_to_repo_map[cont_path] = repo_path_abs.replace('\\', '/')
 
-        return [x, ['source', parsed_source], ['destination', parsed_destination]]
+        # Expand brace patterns first
+        brace_expanded = []
+        for pat in _brace_expand(source_raw):
+            brace_expanded.append(pat)
+
+        # Resolve repo paths for each expanded source
+        resolved_sources = []
+        base_dir = str(Path(dockerfile_path_local).parent)
+        for src in brace_expanded:
+            if src == '.':
+                resolved_sources.append(src)
+                continue
+            # If absolute path-like, keep as is relative to repo root
+            resolved_sources.append(src)
+
+        # Glob expansion
+        matched_files = []
+        import glob as _glob
+        for src in resolved_sources:
+            if src == '.':
+                # include all files under base_dir
+                for dirpath, _, filenames in os.walk(base_dir):
+                    for fn in filenames:
+                        matched_files.append(os.path.join(dirpath, fn))
+            else:
+                pattern = os.path.join(repo_path, src)
+                hits = _glob.glob(pattern)
+                if hits:
+                    matched_files.extend(hits)
+                else:
+                    # treat as literal if no match
+                    matched_files.append(os.path.join(repo_path, src))
+
+        # Build mapping and content summary
+        files_summary = []
+        for fpath in matched_files:
+            if os.path.isdir(fpath):
+                # copy directory: map contained files one level deep (heuristic)
+                for dirpath, _, filenames in os.walk(fpath):
+                    for fn in filenames:
+                        repo_abs = os.path.join(dirpath, fn).replace('\\', '/')
+                        cont_abs = os.path.join(destination, fn).replace('\\', '/')
+                        container_to_repo_map[cont_abs] = repo_abs
+                        ftype, fsize = _determine_content_type(repo_abs)
+                        files_summary.append(['file', ['container_path', [cont_abs]], ['repo_path', [repo_abs]], ['type', [ftype]], ['size', [fsize]]])
+            else:
+                repo_abs = fpath.replace('\\', '/')
+                cont_abs = os.path.join(destination, os.path.basename(fpath)).replace('\\', '/')
+                container_to_repo_map[cont_abs] = repo_abs
+                ftype, fsize = _determine_content_type(repo_abs)
+                files_summary.append(['file', ['container_path', [cont_abs]], ['repo_path', [repo_abs]], ['type', [ftype]], ['size', [fsize]]])
+
+        # Parse with variable support
+        parsed_source = parse_value_with_variables(source_raw)
+        parsed_destination = parse_value_with_variables(destination)
+
+        node = [x, ['source', parsed_source], ['destination', parsed_destination]]
+        if files_summary:
+            files_node = ['files']
+            files_node.extend(files_summary)
+            node.append(files_node)
+        return node
     
     return [x, ['error', ['Invalid COPY/ADD format']]]
 

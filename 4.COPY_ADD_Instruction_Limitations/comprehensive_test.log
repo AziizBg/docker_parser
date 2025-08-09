@@ -1,0 +1,440 @@
+
+================================================================================
+ COPY/ADD LIMITATIONS - COMPREHENSIVE TEST SUITE
+================================================================================
+
+--- Test Case: Glob patterns (*.txt) ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+COPY *.txt /dest/
+
+```
+
+OLD VERSION Analysis:
+  Node 1:
+    files: (none)
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      └── COPY
+          ├── source
+          │   └── *.txt
+          └── destination
+              └── /dest/
+
+ENHANCED VERSION Analysis:
+  Node 1:
+    files: 2
+      1. /dest/root1.txt (text)
+      2. /dest/root2.txt (text)
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  └── COPY
+      ├── source
+      │   └── text
+      │       └── *.txt
+      ├── destination
+      │   └── text
+      │       └── /dest/
+      └── files
+          ├── file
+          │   ├── container_path
+          │   │   └── /dest/root1.txt
+          │   ├── repo_path
+          │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/root1.txt
+          │   ├── type
+          │   │   └── text
+          │   └── size
+          │       └── 6
+          └── file
+              ├── container_path
+              │   └── /dest/root2.txt
+              ├── repo_path
+              │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/root2.txt
+              ├── type
+              │   └── text
+              └── size
+                  └── 6
+
+--- Test Case: Dir glob (src/*.py) ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+COPY src/*.py /dest/
+
+```
+
+OLD VERSION Analysis:
+  Node 1:
+    files: (none)
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      └── COPY
+          ├── source
+          │   └── src/*.py
+          └── destination
+              └── /dest/
+
+ENHANCED VERSION Analysis:
+  Node 1:
+    files: 2
+      1. /dest/y.py (text)
+      2. /dest/x.py (text)
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  └── COPY
+      ├── source
+      │   └── text
+      │       └── src/*.py
+      ├── destination
+      │   └── text
+      │       └── /dest/
+      └── files
+          ├── file
+          │   ├── container_path
+          │   │   └── /dest/y.py
+          │   ├── repo_path
+          │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/y.py
+          │   ├── type
+          │   │   └── text
+          │   └── size
+          │       └── 12
+          └── file
+              ├── container_path
+              │   └── /dest/x.py
+              ├── repo_path
+              │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/x.py
+              ├── type
+              │   └── text
+              └── size
+                  └── 12
+
+--- Test Case: Brace expansion ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+COPY src/{file1,file2}.txt /dest/
+
+```
+
+OLD VERSION Analysis:
+  Node 1:
+    files: (none)
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      └── COPY
+          ├── source
+          │   └── src/{file1,file2}.txt
+          └── destination
+              └── /dest/
+
+ENHANCED VERSION Analysis:
+  Node 1:
+    files: 2
+      1. /dest/file1.txt (text)
+      2. /dest/file2.txt (text)
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  └── COPY
+      ├── source
+      │   └── text
+      │       └── src/{file1,file2}.txt
+      ├── destination
+      │   └── text
+      │       └── /dest/
+      └── files
+          ├── file
+          │   ├── container_path
+          │   │   └── /dest/file1.txt
+          │   ├── repo_path
+          │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/file1.txt
+          │   ├── type
+          │   │   └── text
+          │   └── size
+          │       └── 18
+          └── file
+              ├── container_path
+              │   └── /dest/file2.txt
+              ├── repo_path
+              │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/file2.txt
+              ├── type
+              │   └── text
+              └── size
+                  └── 18
+
+--- Test Case: Single char wildcard and class ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+COPY src/?.txt /dest/
+COPY src/[a-z]*.txt /dest/
+
+```
+
+OLD VERSION Analysis:
+  Node 1:
+    files: (none)
+  Node 2:
+    files: (none)
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── COPY
+      │   ├── source
+      │   │   └── src/?.txt
+      │   └── destination
+      │       └── /dest/
+      └── COPY
+          ├── source
+          │   └── src/[a-z]*.txt
+          └── destination
+              └── /dest/
+
+ENHANCED VERSION Analysis:
+  Node 1:
+    files: 3
+      1. /dest/c.txt (text)
+      2. /dest/b.txt (text)
+      3. /dest/a.txt (text)
+  Node 2:
+    files: 5
+      1. /dest/file2.txt (text)
+      2. /dest/file1.txt (text)
+      3. /dest/c.txt (text)
+      4. /dest/b.txt (text)
+      5. /dest/a.txt (text)
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  ├── COPY
+  │   ├── source
+  │   │   └── text
+  │   │       └── src/?.txt
+  │   ├── destination
+  │   │   └── text
+  │   │       └── /dest/
+  │   └── files
+  │       ├── file
+  │       │   ├── container_path
+  │       │   │   └── /dest/c.txt
+  │       │   ├── repo_path
+  │       │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/c.txt
+  │       │   ├── type
+  │       │   │   └── text
+  │       │   └── size
+  │       │       └── 14
+  │       ├── file
+  │       │   ├── container_path
+  │       │   │   └── /dest/b.txt
+  │       │   ├── repo_path
+  │       │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/b.txt
+  │       │   ├── type
+  │       │   │   └── text
+  │       │   └── size
+  │       │       └── 14
+  │       └── file
+  │           ├── container_path
+  │           │   └── /dest/a.txt
+  │           ├── repo_path
+  │           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/a.txt
+  │           ├── type
+  │           │   └── text
+  │           └── size
+  │               └── 14
+  └── COPY
+      ├── source
+      │   └── text
+      │       └── src/[a-z]*.txt
+      ├── destination
+      │   └── text
+      │       └── /dest/
+      └── files
+          ├── file
+          │   ├── container_path
+          │   │   └── /dest/file2.txt
+          │   ├── repo_path
+          │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/file2.txt
+          │   ├── type
+          │   │   └── text
+          │   └── size
+          │       └── 18
+          ├── file
+          │   ├── container_path
+          │   │   └── /dest/file1.txt
+          │   ├── repo_path
+          │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/file1.txt
+          │   ├── type
+          │   │   └── text
+          │   └── size
+          │       └── 18
+          ├── file
+          │   ├── container_path
+          │   │   └── /dest/c.txt
+          │   ├── repo_path
+          │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/c.txt
+          │   ├── type
+          │   │   └── text
+          │   └── size
+          │       └── 14
+          ├── file
+          │   ├── container_path
+          │   │   └── /dest/b.txt
+          │   ├── repo_path
+          │   │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/b.txt
+          │   ├── type
+          │   │   └── text
+          │   └── size
+          │       └── 14
+          └── file
+              ├── container_path
+              │   └── /dest/a.txt
+              ├── repo_path
+              │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/src/a.txt
+              ├── type
+              │   └── text
+              └── size
+                  └── 14
+
+--- Test Case: Content summary (json, env) ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+COPY config.json /app/
+COPY .env /app/
+
+```
+
+OLD VERSION Analysis:
+  Node 1:
+    files: (none)
+  Node 2:
+    files: (none)
+
+OLD VERSION Full Tree:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── COPY
+      │   ├── source
+      │   │   └── config.json
+      │   └── destination
+      │       └── /app/
+      └── COPY
+          ├── source
+          │   └── .env
+          └── destination
+              └── /app/
+
+ENHANCED VERSION Analysis:
+  Node 1:
+    files: 1
+      1. /app/config.json (json)
+  Node 2:
+    files: 1
+      1. /app/.env (env)
+
+ENHANCED VERSION Full Tree:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  ├── COPY
+  │   ├── source
+  │   │   └── text
+  │   │       └── config.json
+  │   ├── destination
+  │   │   └── text
+  │   │       └── /app/
+  │   └── files
+  │       └── file
+  │           ├── container_path
+  │           │   └── /app/config.json
+  │           ├── repo_path
+  │           │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/config.json
+  │           ├── type
+  │           │   └── json
+  │           └── size
+  │               └── 16
+  └── COPY
+      ├── source
+      │   └── text
+      │       └── .env
+      ├── destination
+      │   └── text
+      │       └── /app/
+      └── files
+          └── file
+              ├── container_path
+              │   └── /app/.env
+              ├── repo_path
+              │   └── /var/folders/g1/cwyy9_v96rj4nd1gfh4chmkr0000gn/T/copy_add_demo_52bmp98p/.env
+              ├── type
+              │   └── env
+              └── size
+                  └── 9

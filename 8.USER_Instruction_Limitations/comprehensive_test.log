@@ -1,0 +1,94 @@
+
+== USER LIMITATIONS - COMPARISON ==
+
+Test Dockerfile:
+```dockerfile
+FROM ubuntu:latest
+USER nonexistentuser
+USER 999999
+USER user:invalidgroup
+USER -1:1000
+USER app:dev:abc:-2
+
+```
+Explanation: Enhanced parser annotates validation issues for uid/gid negativity and non-integers.
+
+OLD VERSION:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── USER
+      │   └── user
+      │       └── nonexistentuser
+      ├── USER
+      │   └── uid
+      │       └── 999999
+      ├── USER
+      │   ├── user
+      │   │   └── user
+      │   └── group
+      │       └── invalidgroup
+      └── USER
+          ├── uid
+          │   └── -1
+          └── gid
+              └── 1000
+
+ENHANCED VERSION:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  ├── USER
+  │   ├── user
+  │   │   └── text
+  │   │       └── nonexistentuser
+  │   └── validation
+  ├── USER
+  │   ├── user
+  │   │   └── text
+  │   │       └── 999999
+  │   └── validation
+  ├── USER
+  │   ├── user
+  │   │   └── text
+  │   │       └── user
+  │   └── group
+  │       └── text
+  │           └── invalidgroup
+  ├── USER
+  │   ├── user
+  │   │   └── text
+  │   │       └── -1
+  │   ├── group
+  │   │   └── text
+  │   │       └── 1000
+  │   └── validation
+  │       └── issue
+  │           └── negative_uid
+  └── USER
+      ├── user
+      │   └── text
+      │       └── app
+      ├── group
+      │   └── text
+      │       └── dev
+      ├── uid
+      │   └── text
+      │       └── abc
+      ├── gid
+      │   └── text
+      │       └── -2
+      └── validation
+          ├── issue
+          │   └── uid_not_integer
+          └── issue
+              └── negative_gid

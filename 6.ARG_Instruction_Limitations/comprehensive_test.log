@@ -1,0 +1,66 @@
+
+== ARG LIMITATIONS - COMPARISON ==
+
+Test Dockerfile:
+```dockerfile
+FROM ubuntu:latest
+ARG VERSION
+ARG BUILD_DATE
+ARG CHANNEL=stable
+
+```
+Explanation: Resolves unassigned ARGs from DOCKER_BUILD_ARGS_JSON and marks sources.
+
+OLD VERSION:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── ARG
+      │   └── name
+      │       └── VERSION
+      ├── ARG
+      │   └── name
+      │       └── BUILD_DATE
+      └── ARG
+          ├── name
+          │   └── CHANNEL
+          └── value
+              └── stable
+
+ENHANCED VERSION:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  ├── ARG
+  │   ├── name
+  │   │   └── VERSION
+  │   ├── resolved
+  │   │   └── text
+  │   │       └── 1.0
+  │   └── source
+  │       └── build_arg
+  ├── ARG
+  │   ├── name
+  │   │   └── BUILD_DATE
+  │   ├── resolved
+  │   │   └── text
+  │   │       └── 2024-01-01
+  │   └── source
+  │       └── build_arg
+  └── ARG
+      ├── name
+      │   └── CHANNEL
+      ├── value
+      │   └── text
+      │       └── stable
+      └── source
+          └── default

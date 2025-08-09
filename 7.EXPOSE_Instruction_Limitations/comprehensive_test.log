@@ -1,0 +1,113 @@
+
+== EXPOSE LIMITATIONS - COMPARISON ==
+
+Test Dockerfile:
+```dockerfile
+FROM ubuntu:latest
+EXPOSE 99999
+EXPOSE 80/invalid
+EXPOSE -1
+EXPOSE 65536
+EXPOSE 80/tcp 443/udp
+
+```
+Explanation: Enhanced parser annotates port/protocol issues under validation.
+
+OLD VERSION:
+  stage
+  └── 0
+      ├── FROM
+      │   ├── image_name
+      │   │   └── ubuntu
+      │   └── image_tag
+      │       └── latest
+      ├── EXPOSE
+      │   └── port
+      │       └── 1
+      │           └── value
+      │               └── 99999
+      ├── EXPOSE
+      │   └── port
+      │       └── 1
+      │           ├── value
+      │           │   └── 80
+      │           └── protocol
+      │               └── invalid
+      ├── EXPOSE
+      │   └── port
+      │       └── 1
+      │           └── value
+      │               └── -1
+      ├── EXPOSE
+      │   └── port
+      │       └── 1
+      │           └── value
+      │               └── 65536
+      └── EXPOSE
+          └── port
+              ├── 1
+              │   ├── value
+              │   │   └── 80
+              │   └── protocol
+              │       └── tcp
+              └── 2
+                  ├── value
+                  │   └── 443
+                  └── protocol
+                      └── udp
+
+ENHANCED VERSION:
+  stage
+  ├── FROM
+  │   ├── stage
+  │   │   └── 1
+  │   ├── image_name
+  │   │   └── ubuntu
+  │   └── image_tag
+  │       └── latest
+  ├── EXPOSE
+  │   └── port
+  │       └── 1
+  │           ├── value
+  │           │   └── 99999
+  │           └── validation
+  │               └── issues
+  │                   └── port_out_of_range
+  ├── EXPOSE
+  │   └── port
+  │       └── 1
+  │           ├── value
+  │           │   └── 80
+  │           ├── protocol
+  │           │   └── invalid
+  │           └── validation
+  │               └── issues
+  │                   └── invalid_protocol
+  ├── EXPOSE
+  │   └── port
+  │       └── 1
+  │           ├── value
+  │           │   └── -1
+  │           └── validation
+  │               └── issues
+  │                   └── port_out_of_range
+  ├── EXPOSE
+  │   └── port
+  │       └── 1
+  │           ├── value
+  │           │   └── 65536
+  │           └── validation
+  │               └── issues
+  │                   └── port_out_of_range
+  └── EXPOSE
+      └── port
+          ├── 1
+          │   ├── value
+          │   │   └── 80
+          │   └── protocol
+          │       └── tcp
+          └── 2
+              ├── value
+              │   └── 443
+              └── protocol
+                  └── udp

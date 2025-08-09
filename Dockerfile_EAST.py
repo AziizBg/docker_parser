@@ -24,6 +24,7 @@ import re
 
 # --- Script detection integration (2.3) ---
 container_to_repo_map = {}
+current_build_args = {}
 
 def _tokenize_shell_command(cmd: str):
     tokens = []
@@ -729,12 +730,18 @@ def handle_arg(y, x):
     if (pos_equal != -1):
         name = y[:pos_equal]
         value = y[pos_equal + 1:]
-        
-        # Parse value with variable support
         parsed_value = parse_value_with_variables(value)
-        
-        return [x, ['name', [name]], ['value', parsed_value]]
-    return [x, ['name', [y]]]
+        node = [x, ['name', [name]], ['value', parsed_value]]
+        node.append(['source', ['default']])
+        return node
+    # Unassigned ARG: resolve from build-time mapping if available
+    name = y.strip()
+    node = [x, ['name', [name]]]
+    if name in current_build_args:
+        resolved = str(current_build_args[name])
+        node.append(['resolved', ['text', [resolved]]])
+        node.append(['source', ['build_arg']])
+    return node
 
 
 def handle_expose(y, x):
@@ -765,9 +772,30 @@ def handle_expose(y, x):
             port = port1[:pos_anti]
             protocol = port1[pos_anti + 1:]
             y = [nb, ['value', [port]], ['protocol', [protocol]]]
+            # Validation
+            issues = []
+            try:
+                p = int(port)
+                if p < 1 or p > 65535:
+                    issues.append('port_out_of_range')
+            except ValueError:
+                issues.append('port_not_integer')
+            if protocol.lower() not in {'tcp', 'udp', 'sctp'}:
+                issues.append('invalid_protocol')
+            if issues:
+                y.append(['validation', ['issues', [', '.join(issues)]]])
         else:
             # Port without protocol
             y = [nb, ['value', [port1]]]
+            issues = []
+            try:
+                p = int(port1)
+                if p < 1 or p > 65535:
+                    issues.append('port_out_of_range')
+            except ValueError:
+                issues.append('port_not_integer')
+            if issues:
+                y.append(['validation', ['issues', [', '.join(issues)]]])
         portlist.append(y)
     return [x, portlist]
 
@@ -796,19 +824,58 @@ def handle_user(y, x):
     parts = y.split(':')
     if len(parts) == 1:
         # Just username
-        return [x, ['user', parsed_value]]
+        node = [x, ['user', parsed_value]]
+        uname = y.strip()
+        validation = ['validation']
+        if uname.startswith('-'):
+            validation.append(['issue', ['negative_uid']])
+        node.append(validation)
+        return node
     elif len(parts) == 2:
         # username:group or uid:gid
         username, group = parts
-        return [x, ['user', parse_value_with_variables(username)], ['group', parse_value_with_variables(group)]]
+        node = [x, ['user', parse_value_with_variables(username)], ['group', parse_value_with_variables(group)]]
+        validation = ['validation']
+        # Numeric check
+        try:
+            uid = int(username)
+            if uid < 0:
+                validation.append(['issue', ['negative_uid']])
+        except ValueError:
+            pass
+        try:
+            gid = int(group)
+            if gid < 0:
+                validation.append(['issue', ['negative_gid']])
+        except ValueError:
+            pass
+        if len(validation) > 1:
+            node.append(validation)
+        return node
     elif len(parts) == 4:
         # username:group:uid:gid
         username, group, uid, gid = parts
-        return [x, 
+        node = [x, 
                 ['user', parse_value_with_variables(username)], 
                 ['group', parse_value_with_variables(group)],
                 ['uid', parse_value_with_variables(uid)],
                 ['gid', parse_value_with_variables(gid)]]
+        validation = ['validation']
+        try:
+            u = int(uid)
+            if u < 0:
+                validation.append(['issue', ['negative_uid']])
+        except ValueError:
+            validation.append(['issue', ['uid_not_integer']])
+        try:
+            g = int(gid)
+            if g < 0:
+                validation.append(['issue', ['negative_gid']])
+        except ValueError:
+            validation.append(['issue', ['gid_not_integer']])
+        if len(validation) > 1:
+            node.append(validation)
+        return node
     else:
         # Fallback to simple user
         return [x, ['user', parsed_value]]
@@ -1417,7 +1484,7 @@ def handle_copy_add(y, x, stage_aliases, current_stage_number, repo_path, docker
     return [x, ['error', ['Invalid COPY/ADD format']]]
 
 
-def EAST(x, temp_repo_path, dockerfile_path_local):
+def EAST(x, temp_repo_path, dockerfile_path_local, build_args: dict = None):
     """
     Enhanced EAST parser that uses improved variable detection and interpretation
     
@@ -1442,6 +1509,19 @@ def EAST(x, temp_repo_path, dockerfile_path_local):
     stage_aliases = {}
     workdir_current = '/'
     
+    global current_build_args
+    current_build_args = {}
+    if build_args and isinstance(build_args, dict):
+        current_build_args.update(build_args)
+    else:
+        # Backward-compatible env fallback
+        build_args_env = os.environ.get('DOCKER_BUILD_ARGS_JSON')
+        if build_args_env:
+            try:
+                current_build_args.update(json.loads(build_args_env))
+            except Exception:
+                pass
+
     for instruction in instructions:
         instruction_type = instruction['instruction']
         instruction_value = instruction['value']
@@ -1547,7 +1627,7 @@ def json_to_tree(json_list):
     return create_node(json_list)
 
 
-def get_EAST(dockerfile_content, temp_repo_path, dockerfile_path_local):
+def get_EAST(dockerfile_content, temp_repo_path, dockerfile_path_local, build_args: dict = None):
     """
     Get enhanced EAST tree from Dockerfile content
     
@@ -1559,5 +1639,5 @@ def get_EAST(dockerfile_content, temp_repo_path, dockerfile_path_local):
     Returns:
         Node: Enhanced abstract syntax tree with variable metadata
     """
-    east_data = EAST(dockerfile_content, temp_repo_path, dockerfile_path_local)
+    east_data = EAST(dockerfile_content, temp_repo_path, dockerfile_path_local, build_args=build_args)
     return json_to_tree(east_data) 

@@ -22,6 +22,96 @@ import os
 from pathlib import Path
 import re
 
+# --- Script detection integration (2.3) ---
+container_to_repo_map = {}
+
+def _tokenize_shell_command(cmd: str):
+    tokens = []
+    buf = ''
+    quote = None
+    i = 0
+    while i < len(cmd):
+        ch = cmd[i]
+        if ch in ('"', "'"):
+            if quote is None:
+                quote = ch
+            elif quote == ch:
+                quote = None
+            buf += ch
+            i += 1
+            continue
+        if quote is None and ch.isspace():
+            if buf:
+                tokens.append(buf)
+                buf = ''
+            i += 1
+            continue
+        buf += ch
+        i += 1
+    if buf:
+        tokens.append(buf)
+    return tokens
+
+
+def _resolve_path(workdir: str, path_str: str) -> str:
+    p = Path(path_str)
+    if p.is_absolute():
+        return str(p)
+    return str(Path(workdir or '/').joinpath(p).resolve())
+
+
+def _file_has_shebang(file_path: str) -> bool:
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            first = f.readline(256)
+            return first.startswith('#!')
+    except Exception:
+        return False
+
+
+def _extract_script_content(repo_path: str):
+    if not repo_path or not os.path.isfile(repo_path):
+        return None
+    try:
+        with open(repo_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = [ln for ln in f.readlines() if not ln.strip().startswith('#')]
+        return ''.join(lines)
+    except Exception:
+        return None
+
+
+def _detect_script_invocation(tokens, workdir: str, chmod_exec_paths: set):
+    if not tokens:
+        return None
+    interpreters = {'bash', 'sh', 'zsh', 'ksh', 'dash', 'python', 'python3', 'node', 'ruby'}
+
+    def build_node(path_str: str, args_rest):
+        abs_container = _resolve_path(workdir, path_str)
+        repo_path = container_to_repo_map.get(abs_container.replace('\\', '/'))
+        is_known = is_script(path_str) or (repo_path and _file_has_shebang(repo_path)) or (abs_container in chmod_exec_paths)
+        content = _extract_script_content(repo_path) if repo_path else None
+        node = ['script', ['path', [abs_container]]]
+        if args_rest:
+            node.append(['args', ['text', [' '.join(args_rest)]]])
+        if repo_path:
+            node.append(['repo_path', [repo_path]])
+        if content is not None and is_known:
+            node.append(['content', [content]])
+        return node
+
+    cmd = tokens[0]
+    args = tokens[1:]
+    # Interpreter form
+    if cmd in interpreters and args:
+        return build_node(args[0], args[1:])
+    # Direct execution
+    if cmd.startswith('/') or cmd.startswith('./') or cmd.startswith('../') or cmd.startswith('.'+os.sep):
+        return build_node(cmd, args)
+    # Bare name in workdir
+    if '/' not in cmd and '\\' not in cmd and (is_script(cmd) or _resolve_path(workdir, cmd) in chmod_exec_paths):
+        return build_node(cmd, args)
+    return None
+
 
 def variableExists(x):
     """
@@ -1032,18 +1122,31 @@ def parse_shell_construct(command: str):
     return None
 
 
-def handle_run(y, x):
+def handle_run(y, x, workdir: str):
     """
-    Enhanced RUN instruction parser with shell construct analysis
+    Enhanced RUN/CMD/ENTRYPOINT parser with shell construct analysis and script detection.
     """
-    # Split by top-level logical operators first
     logical_segments = split_run_commands_logical(y)
+    # Pass 1: collect chmod +x targets within this instruction
+    chmod_exec_paths = set()
+    for seg in logical_segments or [{'command': y, 'separator': None}]:
+        toks = _tokenize_shell_command(seg['command'])
+        if toks and toks[0] == 'chmod' and len(toks) >= 3 and ('+x' in toks[1] or 'a+x' in toks[1]):
+            for path_tok in toks[2:]:
+                if path_tok.startswith('-'):
+                    continue
+                abs_path = _resolve_path(workdir, path_tok)
+                chmod_exec_paths.add(abs_path)
+
     if not logical_segments:
-        # single command
         node = parse_shell_construct(y.strip())
         if node:
             return [x, node]
-        # Fallback to previous behavior
+        # Attempt script detection on single segment
+        toks = _tokenize_shell_command(y.strip())
+        script_node = _detect_script_invocation(toks, workdir, chmod_exec_paths)
+        if script_node:
+            return [x, ['command_segment', script_node]]
         parsed_command = parse_value_with_variables(y)
         return [x, ['command', parsed_command]]
 
@@ -1051,28 +1154,29 @@ def handle_run(y, x):
     for seg in logical_segments:
         seg_text = seg['command']
         node = parse_shell_construct(seg_text)
-        if node:
-            segment = ['command_segment', node]
-        else:
-            # For non-constructs, reuse prior rich splitting (semicolon, pipes, etc.)
-            inner_segments = split_run_commands(seg_text)
-            if len(inner_segments) <= 1:
-                segment = ['command_segment', ['command', parse_value_with_variables(seg_text)]]
+        if not node:
+            # Try script detection per segment
+            toks = _tokenize_shell_command(seg_text)
+            script_node = _detect_script_invocation(toks, workdir, chmod_exec_paths)
+            if script_node:
+                segment = ['command_segment', script_node]
             else:
-                # Expand into multiple command_segments for inner semicolon/pipe splits
-                # Append them immediately to result with their separators; continue to next top-level separator
-                for inner in inner_segments:
-                    inner_node = ['command_segment', ['command', parse_value_with_variables(inner['command'])]]
-                    if inner['separator']:
-                        inner_node.append(['separator', [inner['separator']]])
-                        inner_node.append(['type', [inner['type']]])
-                    result.append(inner_node)
-                # Add the top-level separator info on the last appended
-                if seg['separator']:
-                    # annotate the last segment emitted with the top-level separator
-                    result[-1].append(['separator', [seg['separator']]])
-                    result[-1].append(['type', [seg['type']]])
-                continue
+                inner_segments = split_run_commands(seg_text)
+                if len(inner_segments) <= 1:
+                    segment = ['command_segment', ['command', parse_value_with_variables(seg_text)]]
+                else:
+                    for inner in inner_segments:
+                        inner_node = ['command_segment', ['command', parse_value_with_variables(inner['command'])]]
+                        if inner['separator']:
+                            inner_node.append(['separator', [inner['separator']]])
+                            inner_node.append(['type', [inner['type']]])
+                        result.append(inner_node)
+                    if seg['separator']:
+                        result[-1].append(['separator', [seg['separator']]])
+                        result[-1].append(['type', [seg['type']]])
+                    continue
+        else:
+            segment = ['command_segment', node]
         if seg['separator']:
             segment.append(['separator', [seg['separator']]])
             segment.append(['type', [seg['type']]])
@@ -1139,6 +1243,19 @@ def handle_copy_add(y, x, stage_aliases, current_stage_number, repo_path, docker
         parsed_source = parse_value_with_variables(source)
         parsed_destination = parse_value_with_variables(destination)
         
+        # Record container->repo mapping for potential scripts
+        if source == '.':
+            base_dir = str(Path(dockerfile_path_local).parent)
+            for dirpath, _, filenames in os.walk(base_dir):
+                for filename in filenames:
+                    cont_path = os.path.join(destination, filename).replace('\\', '/')
+                    repo_path_abs = os.path.join(dirpath, filename).replace('\\', '/')
+                    container_to_repo_map[cont_path] = repo_path_abs
+        else:
+            repo_path_abs = os.path.join(repo_path, source)
+            cont_path = os.path.join(destination, os.path.basename(source)).replace('\\', '/')
+            container_to_repo_map[cont_path] = repo_path_abs.replace('\\', '/')
+
         return [x, ['source', parsed_source], ['destination', parsed_destination]]
     
     return [x, ['error', ['Invalid COPY/ADD format']]]
@@ -1167,6 +1284,7 @@ def EAST(x, temp_repo_path, dockerfile_path_local):
     result = ['stage']
     stage_number = 0
     stage_aliases = {}
+    workdir_current = '/'
     
     for instruction in instructions:
         instruction_type = instruction['instruction']
@@ -1194,16 +1312,17 @@ def EAST(x, temp_repo_path, dockerfile_path_local):
             result.append(handle_user(instruction_value, instruction_type))
             
         elif instruction_type in ['RUN', 'CMD', 'ENTRYPOINT']:
-            result.append(handle_run(instruction_value, instruction_type))
+            result.append(handle_run(instruction_value, instruction_type, workdir_current))
             
         elif instruction_type in ['COPY', 'ADD']:
             result.append(handle_copy_add(instruction_value, instruction_type, 
                                        stage_aliases, stage_number, temp_repo_path, dockerfile_path_local))
             
         elif instruction_type == 'WORKDIR':
-            # Parse workdir with variable support
+            # Parse workdir with variable support and update current
             parsed_workdir = parse_value_with_variables(instruction_value)
             result.append([instruction_type, ['path', parsed_workdir]])
+            workdir_current = instruction_value.strip() or '/'
             
         elif instruction_type == 'VOLUME':
             # Parse volume with variable support

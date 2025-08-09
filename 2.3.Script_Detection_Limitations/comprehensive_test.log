@@ -1,0 +1,76 @@
+
+================================================================================
+ SCRIPT DETECTION LIMITATIONS - COMPREHENSIVE TEST SUITE
+================================================================================
+
+--- Test Case: Extensionless script via chmod + execute ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+COPY setup /tmp/
+RUN chmod +x /tmp/setup && /tmp/setup
+
+```
+
+OLD VERSION Analysis:
+  ❌ No script nodes detected
+
+ENHANCED VERSION Analysis:
+  Script 1: path=/tmp/setup args=None
+
+--- Test Case: Explicit interpreter invocation ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+RUN bash /tmp/script.sh
+
+```
+
+OLD VERSION Analysis:
+  ❌ No script nodes detected
+
+ENHANCED VERSION Analysis:
+  Script 1: path=/tmp/script.sh args=None
+
+--- Test Case: Direct execution with args ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+RUN /tmp/script.sh arg1 arg2
+
+```
+
+OLD VERSION Analysis:
+  ❌ No script nodes detected
+
+ENHANCED VERSION Analysis:
+  Script 1: path=/tmp/script.sh args=arg1 arg2
+
+--- Test Case: Relative path script with WORKDIR ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+WORKDIR /app
+RUN ./script.sh
+
+```
+
+OLD VERSION Analysis:
+  ❌ No script nodes detected
+
+ENHANCED VERSION Analysis:
+  Script 1: path=/app/script.sh args=None
+
+--- Test Case: Non-script fallback ---
+Dockerfile Content:
+```dockerfile
+FROM ubuntu:latest
+RUN echo "hello"
+
+```
+
+OLD VERSION Analysis:
+  ❌ No script nodes detected
+
+ENHANCED VERSION Analysis:
+  ❌ No script nodes detected
